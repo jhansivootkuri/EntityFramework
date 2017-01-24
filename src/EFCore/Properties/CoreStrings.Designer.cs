@@ -681,7 +681,7 @@ namespace Microsoft.EntityFrameworkCore.Internal
         }
 
         /// <summary>
-        /// The entity type '{entityType}' cannot be added to the model because an entity with the same name already exists.
+        /// The entity type '{entityType}' cannot be added to the model because an entity type with the same name already exists.
         /// </summary>
         public static string DuplicateEntityType([CanBeNull] object entityType)
         {
@@ -1566,6 +1566,38 @@ namespace Microsoft.EntityFrameworkCore.Internal
         public static string PoolingOptionsModified
         {
             get { return GetString("PoolingOptionsModified"); }
+        }
+
+        /// <summary>
+        /// The entity type '{entityType}' cannot be added to the model because a delegated identity entity type with the same name already exists.
+        /// </summary>
+        public static string ClashingDelegatedIdentityEntityType([CanBeNull] object entityType)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("ClashingDelegatedIdentityEntityType", "entityType"), entityType);
+        }
+
+        /// <summary>
+        /// The delegated identity entity type '{entityType}' cannot be added to the model because a entity type with the same name already exists.
+        /// </summary>
+        public static string ClashingNonDelegatedIdentityEntityType([CanBeNull] object entityType)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("ClashingNonDelegatedIdentityEntityType", "entityType"), entityType);
+        }
+
+        /// <summary>
+        /// The type '{entityType}' cannot have delegated identity entity type '{baseType}' as the base type.
+        /// </summary>
+        public static string DelegatedIdentityBaseType([CanBeNull] object entityType, [CanBeNull] object baseType)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("DelegatedIdentityBaseType", "entityType", "baseType"), entityType, baseType);
+        }
+
+        /// <summary>
+        /// The delegated identity entity type '{entityType}' cannot have a base type.
+        /// </summary>
+        public static string DelegatedIdentityDerivedType([CanBeNull] object entityType)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("DelegatedIdentityDerivedType", "entityType"), entityType);
         }
 
         /// <summary>

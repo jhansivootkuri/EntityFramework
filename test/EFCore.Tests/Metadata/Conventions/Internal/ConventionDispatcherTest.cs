@@ -59,6 +59,49 @@ namespace Microsoft.EntityFrameworkCore.Tests.Metadata.Conventions.Internal
             Assert.Equal(1, convention1.Calls);
             Assert.Equal(1, convention2.Calls);
             Assert.Equal(0, convention3.Calls);
+
+            Assert.Empty(builder.Metadata.GetEntityTypes());
+            Assert.Null(builder.Metadata.FindEntityType(typeof(Order)));
+        }
+
+        [InlineData(false, false)]
+        [InlineData(false, true)]
+        [Theory]
+        public void OnEntityTypeAdded_calls_apply_on_conventions_in_order_for_delegated_identity(bool useBuilder, bool useScope)
+        {
+            var conventions = new ConventionSet();
+
+            var convention1 = new EntityTypeConvention(terminate: false);
+            var convention2 = new EntityTypeConvention(terminate: true);
+            var convention3 = new EntityTypeConvention(terminate: false);
+            conventions.EntityTypeAddedConventions.Add(convention1);
+            conventions.EntityTypeAddedConventions.Add(convention2);
+            conventions.EntityTypeAddedConventions.Add(convention3);
+
+            var builder = new InternalModelBuilder(new Model(conventions));
+
+            var scope = useScope ? builder.Metadata.ConventionDispatcher.StartBatch() : null;
+
+            if (!useBuilder)
+            {
+                var result = builder.Metadata.AddDelegatedIdentityEntityType(typeof(Order), ConfigurationSource.Convention);
+
+                Assert.Equal(!useScope, result == null);
+            }
+
+            if (useScope)
+            {
+                Assert.Equal(0, convention1.Calls);
+                Assert.Equal(0, convention2.Calls);
+                scope.Dispose();
+            }
+
+            Assert.Equal(1, convention1.Calls);
+            Assert.Equal(1, convention2.Calls);
+            Assert.Equal(0, convention3.Calls);
+
+            Assert.Empty(builder.Metadata.GetEntityTypes());
+            Assert.Null(builder.Metadata.FindEntityType(typeof(Order)));
         }
 
         private class EntityTypeConvention : IEntityTypeConvention
@@ -76,7 +119,20 @@ namespace Microsoft.EntityFrameworkCore.Tests.Metadata.Conventions.Internal
                 Assert.Same(entityTypeBuilder, entityTypeBuilder.Metadata.Builder);
                 Calls++;
 
-                return _terminate ? null : entityTypeBuilder;
+                if (_terminate)
+                {
+                    if (entityTypeBuilder.Metadata.HasDelegatedIdentity)
+                    {
+                        entityTypeBuilder.Metadata.Model.RemoveDelegatedIdentityEntityType(entityTypeBuilder.Metadata);
+                    }
+                    else
+                    {
+                        entityTypeBuilder.Metadata.Model.RemoveEntityType(entityTypeBuilder.Metadata.Name);
+                    }
+                    return null;
+                }
+
+                return entityTypeBuilder;
             }
         }
 
@@ -464,6 +520,8 @@ namespace Microsoft.EntityFrameworkCore.Tests.Metadata.Conventions.Internal
             Assert.Equal(new[] { shadowPropertyName, nameof(Order.OrderId) }, convention1.Calls);
             Assert.Equal(new[] { shadowPropertyName, nameof(Order.OrderId) }, convention2.Calls);
             Assert.Empty(convention3.Calls);
+
+            Assert.Empty(entityBuilder.Metadata.GetProperties());
         }
 
         private class PropertyConvention : IPropertyConvention

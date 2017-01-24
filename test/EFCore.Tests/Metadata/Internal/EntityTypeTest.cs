@@ -3035,6 +3035,64 @@ namespace Microsoft.EntityFrameworkCore.Tests.Metadata.Internal
         }
 
         [Fact]
+        public void Can_add_entity_types_with_delegated_identity()
+        {
+            IMutableModel model = new Model();
+            var customerType = model.AddEntityType(typeof(Customer));
+            var idProperty = customerType.GetOrAddProperty(Customer.IdProperty);
+            var customerKey = customerType.AddKey(idProperty);
+            var delegatedOrderType = model.AddDelegatedIdentityEntityType(typeof(Order));
+
+            var fkProperty = delegatedOrderType.AddProperty("ShadowId", typeof(int));
+            var orderKey = delegatedOrderType.AddKey(fkProperty);
+            var fk = delegatedOrderType.AddForeignKey(fkProperty, customerKey, customerType);
+            var index = delegatedOrderType.AddIndex(fkProperty);
+
+            Assert.Same(fkProperty, delegatedOrderType.GetProperties().Single());
+            Assert.Same(orderKey, delegatedOrderType.GetKeys().Single());
+            Assert.Same(fk, delegatedOrderType.GetForeignKeys().Single());
+            Assert.Same(index, delegatedOrderType.GetIndexes().Single());
+            Assert.Equal(new[] { customerType, delegatedOrderType }, model.GetEntityTypes());
+            Assert.Equal(CoreStrings.ClashingDelegatedIdentityEntityType(typeof(Order).DisplayName(fullName: false)),
+                Assert.Throws<InvalidOperationException>(() => model.AddEntityType(typeof(Order))).Message);
+            Assert.Equal(CoreStrings.ClashingNonDelegatedIdentityEntityType(typeof(Customer).DisplayName(fullName: false)),
+                Assert.Throws<InvalidOperationException>(() => model.AddDelegatedIdentityEntityType(typeof(Customer))).Message);
+
+            Assert.Same(delegatedOrderType, model.RemoveDelegatedIdentityEntityType(delegatedOrderType));
+            Assert.Null(((EntityType)delegatedOrderType).Builder);
+            Assert.Null(model.RemoveDelegatedIdentityEntityType(delegatedOrderType));
+        }
+
+        [Fact]
+        public void Adding_delegated_inheritance_to_delegated_identity_definition_entity_types_throws()
+        {
+            IMutableModel model = new Model();
+            var baseType = model.AddDelegatedIdentityEntityType(typeof(BaseType));
+            var orderType = model.AddDelegatedIdentityEntityType(typeof(Order));
+            var derivedType = model.AddDelegatedIdentityEntityType(typeof(SpecialOrder));
+
+            Assert.Equal(CoreStrings.DelegatedIdentityDerivedType(typeof(Order).DisplayName(fullName: false)),
+                Assert.Throws<InvalidOperationException>(() => orderType.BaseType = baseType).Message);
+            Assert.Equal(CoreStrings.DelegatedIdentityDerivedType(typeof(SpecialOrder).DisplayName(fullName: false)),
+                Assert.Throws<InvalidOperationException>(() => derivedType.BaseType = orderType).Message);
+        }
+
+        [Fact]
+        public void Adding_non_delegated_inheritance_to_delegated_identity_definition_entity_types_throws()
+        {
+            IMutableModel model = new Model();
+            var baseType = model.AddEntityType(typeof(BaseType));
+            var orderType = model.AddDelegatedIdentityEntityType(typeof(Order));
+            var derivedType = model.AddEntityType(typeof(SpecialOrder));
+
+            Assert.Equal(CoreStrings.DelegatedIdentityDerivedType(typeof(Order).DisplayName(fullName: false)),
+                Assert.Throws<InvalidOperationException>(() => orderType.BaseType = baseType).Message);
+            Assert.Equal(CoreStrings.DelegatedIdentityBaseType(
+                typeof(SpecialOrder).DisplayName(fullName: false), typeof(Order).DisplayName(fullName: false)),
+                Assert.Throws<InvalidOperationException>(() => derivedType.BaseType = orderType).Message);
+        }
+
+        [Fact]
         public void Change_tracking_from_model_is_used_by_default_regardless_of_CLR_type()
         {
             var model = BuildFullNotificationEntityModel();

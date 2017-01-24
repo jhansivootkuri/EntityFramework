@@ -54,24 +54,26 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
         ///     directly from your code. This API may change or be removed in future releases.
         /// </summary>
-        public EntityType([NotNull] string name, [NotNull] Model model, ConfigurationSource configurationSource)
+        public EntityType([NotNull] string name, [NotNull] Model model, bool hasDelegatedIdentity, ConfigurationSource configurationSource)
             : base(name, model, configurationSource)
         {
             _properties = new SortedDictionary<string, Property>(new PropertyComparer(this));
             Builder = new InternalEntityTypeBuilder(this, model.Builder);
+            HasDelegatedIdentity = hasDelegatedIdentity;
         }
 
         /// <summary>
         ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
         ///     directly from your code. This API may change or be removed in future releases.
         /// </summary>
-        public EntityType([NotNull] Type clrType, [NotNull] Model model, ConfigurationSource configurationSource)
+        public EntityType([NotNull] Type clrType, [NotNull] Model model, bool hasDelegatedIdentity, ConfigurationSource configurationSource)
             : base(clrType, model, configurationSource)
         {
             Check.ValidEntityType(clrType, nameof(clrType));
 
             _properties = new SortedDictionary<string, Property>(new PropertyComparer(this));
             Builder = new InternalEntityTypeBuilder(this, model.Builder);
+            HasDelegatedIdentity = hasDelegatedIdentity;
         }
 
         /// <summary>
@@ -87,6 +89,11 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         public virtual EntityType BaseType => _baseType;
 
         /// <summary>
+        ///     Gets a value indicating whether this entity type has delegated identity.
+        /// </summary>
+        public virtual bool HasDelegatedIdentity { get; }
+
+        /// <summary>
         ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
         ///     directly from your code. This API may change or be removed in future releases.
         /// </summary>
@@ -99,6 +106,11 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                 UpdateBaseTypeConfigurationSource(configurationSource);
                 entityType?.UpdateConfigurationSource(configurationSource);
                 return;
+            }
+
+            if (HasDelegatedIdentity)
+            {
+                throw new InvalidOperationException(CoreStrings.DelegatedIdentityDerivedType(this.DisplayName()));
             }
 
             var originalBaseType = _baseType;
@@ -116,6 +128,11 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                     if (!entityType.ClrType.GetTypeInfo().IsAssignableFrom(ClrType.GetTypeInfo()))
                     {
                         throw new InvalidOperationException(CoreStrings.NotAssignableClrBaseType(this.DisplayName(), entityType.DisplayName(), ClrType.ShortDisplayName(), entityType.ClrType.ShortDisplayName()));
+                    }
+
+                    if (entityType.HasDelegatedIdentity)
+                    {
+                        throw new InvalidOperationException(CoreStrings.DelegatedIdentityBaseType(this.DisplayName(), entityType.DisplayName()));
                     }
                 }
 
@@ -1485,12 +1502,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             var property = new Property(name, propertyType, memberInfo as PropertyInfo, memberInfo as FieldInfo, this, configurationSource, typeConfigurationSource);
 
             _properties.Add(property.Name, property);
-
             PropertyMetadataChanged();
 
-            property = Model.ConventionDispatcher.OnPropertyAdded(property.Builder)?.Metadata;
-
-            return property;
+            return Model.ConventionDispatcher.OnPropertyAdded(property.Builder)?.Metadata;
         }
 
         /// <summary>
