@@ -155,19 +155,6 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                 return handlerContext.EvalOnClient();
             }
 
-            if (relationalQueryModelVisitor.RequiresClientSingleColumnResultOperator
-                && !(resultOperator is SkipResultOperator
-                    || resultOperator is TakeResultOperator
-                    || resultOperator is FirstResultOperator
-                    || resultOperator is SingleResultOperator
-                    || resultOperator is CountResultOperator
-                    || resultOperator is AllResultOperator
-                    || resultOperator is AnyResultOperator
-                    || resultOperator is GroupResultOperator))
-            {
-                return handlerContext.EvalOnClient();
-            }
-
             return resultHandler(handlerContext);
         }
 
@@ -666,7 +653,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
 
                 if (!(expression.RemoveConvert() is SelectExpression))
                 {
-                    var sumExpression = new SqlFunctionExpression("SUM", expression.Type, new [] { expression });
+                    var sumExpression = new SqlFunctionExpression("SUM", handlerContext.QueryModel.SelectClause.Selector.Type, new [] { expression });
 
                     handlerContext.SelectExpression.SetProjectionExpression(sumExpression);
 
