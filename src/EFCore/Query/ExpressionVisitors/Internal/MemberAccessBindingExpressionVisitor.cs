@@ -21,7 +21,7 @@ namespace Microsoft.EntityFrameworkCore.Query.ExpressionVisitors.Internal
     ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
     ///     directly from your code. This API may change or be removed in future releases.
     /// </summary>
-    public class MemberAccessBindingExpressionVisitor : RelinqExpressionVisitor
+    public class MemberAccessBindingExpressionVisitor : ExpressionVisitorBase
     {
         private readonly QuerySourceMapping _querySourceMapping;
         private readonly EntityQueryModelVisitor _queryModelVisitor;
@@ -160,17 +160,6 @@ namespace Microsoft.EntityFrameworkCore.Query.ExpressionVisitors.Internal
             }
 
             return newExpression;
-        }
-
-        /// <summary>
-        ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
-        ///     directly from your code. This API may change or be removed in future releases.
-        /// </summary>
-        protected override Expression VisitSubQuery(SubQueryExpression expression)
-        {
-            expression.QueryModel.TransformExpressions(Visit);
-
-            return expression;
         }
 
         /// <summary>
